@@ -1,1 +1,5 @@
-
+{
+  "FiercePharma": "https://www.fiercepharma.com/rss/xml",
+  "Endpoints News": "https://endpts.com/feed/",
+  "PharmaTimes": "https://www.pharmatimes.com/rss"
+}
