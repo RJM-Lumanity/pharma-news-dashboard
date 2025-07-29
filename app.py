@@ -104,7 +104,7 @@ for source_name, feed_url in rss_sources.items():
         published_struct = getattr(entry, "published_parsed", None) or getattr(entry, "updated_parsed", None)
         if not published_struct:
             continue  # skip if no date
-        
+
         published_date = datetime.fromtimestamp(time.mktime(published_struct))
         if published_date < datetime.now() - timedelta(days=7):
             continue  # skip if older than 7 days
@@ -127,7 +127,6 @@ for source_name, feed_url in rss_sources.items():
             "text": combined_text,
             "source": source_name
         })
-
 
 # ✅ Fetch full article text and combine with title for keyword matching
 full_text = fetch_full_article_text(getattr(entry, "link", ""))
