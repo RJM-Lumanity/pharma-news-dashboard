@@ -21,17 +21,30 @@ def clean_html(raw_html):
         img.decompose()
     return soup.get_text()
 
+import re
+
 def article_in_last_7_days(entry):
     try:
-        published_struct = entry.published_parsed
+        if hasattr(entry, "published_parsed"):
+            published_struct = entry.published_parsed
+        elif hasattr(entry, "updated_parsed"):
+            published_struct = entry.updated_parsed
+        else:
+            return False
+
         published_date = datetime.fromtimestamp(time.mktime(published_struct))
         return published_date >= datetime.now() - timedelta(days=7)
     except:
         return False
 
 def matches_therapy_area(entry_text, keywords):
-    text_lower = entry_text.lower()
-    return any(keyword.lower() in text_lower for keyword in keywords)
+    # Remove punctuation & lowercase everything
+    clean_text = re.sub(r"[^\w\s]", "", entry_text.lower())
+    for keyword in keywords:
+        keyword_clean = re.sub(r"[^\w\s]", "", keyword.lower())
+        if keyword_clean in clean_text:
+            return True
+    return False
 
 # Sidebar selectbox for therapy area
 selected_area = st.sidebar.selectbox("Select therapy area", list(therapy_areas.keys()))
