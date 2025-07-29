@@ -81,7 +81,7 @@ def fetch_all_articles():
                 continue
 
             published_date = datetime.fromtimestamp(time.mktime(published_struct))
-            if published_date < datetime.now() - timedelta(days=7):
+            if published_date < datetime.now() - timedelta(days=30):
                 continue
 
             title_clean = BeautifulSoup(
