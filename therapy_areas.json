@@ -1,1 +1,13 @@
+{
+  "Dermatology": [
+    "ad", "atopic dermatitis", "dermatitis", "eczema", "csu",
+    "chronic spontaneous urticaria", "spontaneous hives", "urticaria",
+    "pn", "prurigo nodularis", "chronic nodular itch", "nodular dermatosis",
+    "ox-40", "amlitelimab", "rocatinlimab"
+  ],
+  "Psoriatic Disease": [
+    "psoriasis", "psoriatic arthritis", "plaque psoriasis",
+    "autoimmune skin condition", "pso", "psa"
+  ]
+}
 
