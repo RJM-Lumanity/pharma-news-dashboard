@@ -33,6 +33,9 @@ def matches_therapy_area(entry_text, keywords):
     text_lower = entry_text.lower()
     return any(keyword.lower() in text_lower for keyword in keywords)
 
+# Sidebar selectbox for therapy area
+selected_area = st.sidebar.selectbox("Select therapy area", list(therapy_areas.keys()))
+
 # ---- Fetch all articles from all sources ----
 all_articles = []
 for source_name, feed_url in rss_sources.items():
