@@ -2,40 +2,70 @@ import streamlit as st
 import feedparser
 import json
 from bs4 import BeautifulSoup
+from datetime import datetime, timedelta
+import time
 
-# ---- Load RSS feeds ----
+# ---- Load RSS sources and therapy areas ----
 with open("rss_sources.json", "r") as f:
     rss_sources = json.load(f)
 
+with open("therapy_areas.json", "r") as f:
+    therapy_areas = json.load(f)
+
 st.title("Pharma News Dashboard 📰")
-st.write("This dashboard pulls the latest pharma news from selected sources.")
-
-# ---- Sidebar ----
-source = st.sidebar.selectbox("Choose a news source", list(rss_sources.keys()))
-feed_url = rss_sources[source]
-feed = feedparser.parse(feed_url)
-
-st.subheader(f"Latest articles from {source}")
+st.write("Showing articles from the last 7 days, grouped by therapy area.")
 
 def clean_html(raw_html):
     soup = BeautifulSoup(raw_html, "html.parser")
     for img in soup.find_all("img"):
-        img.decompose()  # remove images
+        img.decompose()
     return soup.get_text()
 
-# ---- Display Articles ----
-for entry in feed.entries[:10]:
-    # Clean title if it contains HTML
-    raw_title = entry.title
-    clean_title = BeautifulSoup(raw_title, "html.parser").get_text()
+def article_in_last_7_days(entry):
+    try:
+        published_struct = entry.published_parsed
+        published_date = datetime.fromtimestamp(time.mktime(published_struct))
+        return published_date >= datetime.now() - timedelta(days=7)
+    except:
+        return False
 
-    st.markdown(f"### [{clean_title}]({entry.link})")
-    st.write(f"**Published:** {entry.published}")
+def matches_therapy_area(entry_text, keywords):
+    text_lower = entry_text.lower()
+    return any(keyword.lower() in text_lower for keyword in keywords)
 
-    if hasattr(entry, "summary"):
-        summary_text = clean_html(entry.summary)
-        st.write(summary_text.strip())
+# ---- Fetch all articles from all sources ----
+all_articles = []
+for source_name, feed_url in rss_sources.items():
+    feed = feedparser.parse(feed_url)
+    for entry in feed.entries:
+        if article_in_last_7_days(entry):
+            title_clean = BeautifulSoup(entry.title, "html.parser").get_text()
+            summary_clean = clean_html(entry.summary) if hasattr(entry, "summary") else ""
+            combined_text = f"{title_clean} {summary_clean}"
+            all_articles.append({
+                "title": title_clean,
+                "link": entry.link,
+                "published": entry.published,
+                "summary": summary_clean,
+                "text": combined_text
+            })
+
+# ---- Group by therapy area ----
+grouped_articles = {area: [] for area in therapy_areas.keys()}
+
+for article in all_articles:
+    for area, keywords in therapy_areas.items():
+        if matches_therapy_area(article["text"], keywords):
+            grouped_articles[area].append(article)
+
+# ---- Display articles grouped by therapy area ----
+for area, articles in grouped_articles.items():
+    st.subheader(area)
+    if not articles:
+        st.write("_No articles found in the past 7 days_")
     else:
-        st.write("_No summary available_")
-
-    st.markdown("---")
+        for art in articles:
+            st.markdown(f"### [{art['title']}]({art['link']})")
+            st.write(f"**Published:** {art['published']}")
+            st.write(art['summary'])
+            st.markdown("---")
