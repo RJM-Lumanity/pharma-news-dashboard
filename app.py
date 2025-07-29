@@ -5,6 +5,7 @@ import json
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import time
+import re
 
 # ---- Load RSS sources and therapy areas ----
 with open("rss_sources.json", "r") as f:
@@ -22,46 +23,23 @@ def clean_html(raw_html):
         img.decompose()
     return soup.get_text()
 
-import re
-
-def article_in_last_30_days(entry):
-    try:
-        if hasattr(entry, "published_parsed"):
-            published_struct = entry.published_parsed
-        elif hasattr(entry, "updated_parsed"):
-            published_struct = entry.updated_parsed
-        else:
-            return False
-
-        published_date = datetime.fromtimestamp(time.mktime(published_struct))
-        return published_date >= datetime.now() - timedelta(days=7)
-    except:
-        return False
-
-import re
-
 def matches_therapy_area(entry_text, keywords):
-    # Normalize text (lowercase, remove punctuation)
     clean_text = re.sub(r"[^\w\s]", "", entry_text.lower())
-    words = clean_text.split()  # split into words
+    words = clean_text.split()
 
     for keyword in keywords:
         keyword_clean = re.sub(r"[^\w\s]", "", keyword.lower())
         keyword_parts = keyword_clean.split()
 
-        # ✅ If keyword has multiple words, check for full phrase match
         if len(keyword_parts) > 1:
             if keyword_clean in clean_text:
                 return True
         else:
-            # ✅ If single word, match as a standalone word
             if keyword_clean in words:
                 return True
-
     return False
 
-@st.cache_data(ttl=3600)  # cache for 1 hour
-def fetch_full_article_text(url: str) -> str:
+def fetch_full_article_text(url):
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
@@ -76,82 +54,78 @@ def fetch_full_article_text(url: str) -> str:
 
         if article_body:
             paragraphs = article_body.find_all("p")
-            text = "\n".join(
-                p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)
-            )
-            return text
-        else:
-            paragraphs = soup.body.find_all("p")
             return "\n".join(
                 p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)
             )
+
+        paragraphs = soup.body.find_all("p")
+        return "\n".join(
+            p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)
+        )
     except Exception as e:
         print(f"Error fetching article at {url}: {e}")
         return ""
 
+@st.cache_data(ttl=3600)
+def fetch_all_articles():
+    all_articles = []
 
-# Sidebar selectbox for therapy area
+    for source_name, feed_url in rss_sources.items():
+        feed = feedparser.parse(feed_url)
+
+        for entry in feed.entries:
+            published_struct = getattr(entry, "published_parsed", None) or getattr(
+                entry, "updated_parsed", None
+            )
+            if not published_struct:
+                continue
+
+            published_date = datetime.fromtimestamp(time.mktime(published_struct))
+            if published_date < datetime.now() - timedelta(days=7):
+                continue
+
+            title_clean = BeautifulSoup(
+                getattr(entry, "title", ""), "html.parser"
+            ).get_text()
+
+            raw_summary = getattr(entry, "summary", "") or getattr(
+                entry, "description", ""
+            )
+            summary_clean = clean_html(raw_summary)
+
+            combined_text = f"{title_clean} {summary_clean}"
+
+            all_articles.append(
+                {
+                    "title": title_clean,
+                    "link": getattr(entry, "link", ""),
+                    "published": getattr(entry, "published", "")
+                    or getattr(entry, "updated", ""),
+                    "summary": summary_clean,
+                    "text": combined_text,
+                    "source": source_name,
+                }
+            )
+
+    return all_articles
+
+# Sidebar selectbox
 selected_area = st.sidebar.selectbox("Select therapy area", list(therapy_areas.keys()))
 
-# ---- Fetch all articles from all sources ----
-all_articles = []
+# Fetch articles once
+all_articles = fetch_all_articles()
 
-for source_name, feed_url in rss_sources.items():
-    feed = feedparser.parse(feed_url)
-
-    for entry in feed.entries:
-        # ✅ Get published date
-        published_struct = getattr(entry, "published_parsed", None) or getattr(entry, "updated_parsed", None)
-        if not published_struct:
-            continue  # skip if no date
-
-        published_date = datetime.fromtimestamp(time.mktime(published_struct))
-        if published_date < datetime.now() - timedelta(days=7):
-            continue  # skip if older than 7 days
-
-        # ✅ Extract title safely
-        title_clean = BeautifulSoup(getattr(entry, "title", ""), "html.parser").get_text()
-
-        # ✅ Extract summary safely (fallback to description if summary missing)
-        raw_summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
-        summary_clean = clean_html(raw_summary)
-
-        # ✅ Combine text for keyword matching
-        combined_text = f"{title_clean} {summary_clean}"
-
-        all_articles.append({
-            "title": title_clean,
-            "link": getattr(entry, "link", ""),
-            "published": getattr(entry, "published", "") or getattr(entry, "updated", ""),
-            "summary": summary_clean,
-            "text": combined_text,
-            "source": source_name
-        })
-
-# ✅ Fetch full article text and combine with title for keyword matching
-full_text = fetch_full_article_text(getattr(entry, "link", ""))
-combined_text = f"{title_clean} {summary_clean} {full_text}"
-
-        all_articles.append({
-            "title": title_clean,
-            "link": getattr(entry, "link", ""),
-            "published": getattr(entry, "published", "") or getattr(entry, "updated", ""),
-            "summary": summary_clean,
-            "text": combined_text,
-            "source": source_name
-        })
-
-# ---- Group by therapy area ----
+# Group by therapy area
 grouped_articles = {area: [] for area in therapy_areas.keys()}
 
 for article in all_articles:
     for area, keywords in therapy_areas.items():
-        if matches_therapy_area(article["text"], keywords):
+        full_text = article["text"] + " " + fetch_full_article_text(article["link"])
+        if matches_therapy_area(full_text, keywords):
             grouped_articles[area].append(article)
 
-# ---- Display articles grouped by therapy area ----
+# Display
 st.subheader(selected_area)
-
 articles = grouped_articles[selected_area]
 
 if not articles:
@@ -160,5 +134,5 @@ else:
     for art in articles:
         st.markdown(f"### [{art['title']}]({art['link']})")
         st.write(f"**Published:** {art['published']}")
-        st.write(art['summary'])
+        st.write(art["summary"])
         st.markdown("---")
