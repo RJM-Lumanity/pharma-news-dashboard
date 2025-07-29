@@ -1,3 +1,4 @@
+import requests
 import streamlit as st
 import feedparser
 import json
@@ -59,6 +60,36 @@ def matches_therapy_area(entry_text, keywords):
 
     return False
 
+@st.cache_data(ttl=3600)  # cache for 1 hour
+def fetch_full_article_text(url: str) -> str:
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        article_body = (
+            soup.find("article")
+            or soup.find("div", class_="article-content")
+            or soup.find("div", class_="content")
+            or soup.body
+        )
+
+        if article_body:
+            paragraphs = article_body.find_all("p")
+            text = "\n".join(
+                p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)
+            )
+            return text
+        else:
+            paragraphs = soup.body.find_all("p")
+            return "\n".join(
+                p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)
+            )
+    except Exception as e:
+        print(f"Error fetching article at {url}: {e}")
+        return ""
+
+
 # Sidebar selectbox for therapy area
 selected_area = st.sidebar.selectbox("Select therapy area", list(therapy_areas.keys()))
 
@@ -85,8 +116,9 @@ for source_name, feed_url in rss_sources.items():
         raw_summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
         summary_clean = clean_html(raw_summary)
 
-        # ✅ Combine text for keyword matching
-        combined_text = f"{title_clean} {summary_clean}"
+# ✅ Fetch full article text and combine with title for keyword matching
+full_text = fetch_full_article_text(getattr(entry, "link", ""))
+combined_text = f"{title_clean} {summary_clean} {full_text}"
 
         all_articles.append({
             "title": title_clean,
