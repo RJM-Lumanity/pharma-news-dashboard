@@ -37,12 +37,26 @@ def article_in_last_7_days(entry):
     except:
         return False
 
+import re
+
 def matches_therapy_area(entry_text, keywords):
+    # Normalize text (lowercase, remove punctuation)
     clean_text = re.sub(r"[^\w\s]", "", entry_text.lower())
+    words = clean_text.split()  # split into words
+
     for keyword in keywords:
         keyword_clean = re.sub(r"[^\w\s]", "", keyword.lower())
-        if keyword_clean in clean_text:
-            return True
+        keyword_parts = keyword_clean.split()
+
+        # ✅ If keyword has multiple words, check for full phrase match
+        if len(keyword_parts) > 1:
+            if keyword_clean in clean_text:
+                return True
+        else:
+            # ✅ If single word, match as a standalone word
+            if keyword_clean in words:
+                return True
+
     return False
 
 # Sidebar selectbox for therapy area
