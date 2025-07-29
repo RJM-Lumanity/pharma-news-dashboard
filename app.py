@@ -23,8 +23,6 @@ def clean_html(raw_html):
 
 import re
 
-import re
-
 def article_in_last_7_days(entry):
     try:
         if hasattr(entry, "published_parsed"):
@@ -76,13 +74,15 @@ for article in all_articles:
             grouped_articles[area].append(article)
 
 # ---- Display articles grouped by therapy area ----
-for area, articles in grouped_articles.items():
-    st.subheader(area)
-    if not articles:
-        st.write("_No articles found in the past 7 days_")
-    else:
-        for art in articles:
-            st.markdown(f"### [{art['title']}]({art['link']})")
-            st.write(f"**Published:** {art['published']}")
-            st.write(art['summary'])
-            st.markdown("---")
+st.subheader(selected_area)
+
+articles = grouped_articles[selected_area]
+
+if not articles:
+    st.write("_No articles found in the past 7 days_")
+else:
+    for art in articles:
+        st.markdown(f"### [{art['title']}]({art['link']})")
+        st.write(f"**Published:** {art['published']}")
+        st.write(art['summary'])
+        st.markdown("---")
