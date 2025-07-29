@@ -15,7 +15,7 @@ with open("therapy_areas.json", "r") as f:
     therapy_areas = json.load(f)
 
 st.title("Pharma News Dashboard 📰")
-st.write("Showing articles from the last 7 days, grouped by therapy area.")
+st.write("Showing articles from the last 30 days, grouped by therapy area.")
 
 def clean_html(raw_html):
     soup = BeautifulSoup(raw_html, "html.parser")
@@ -129,7 +129,7 @@ st.subheader(selected_area)
 articles = grouped_articles[selected_area]
 
 if not articles:
-    st.write("_No articles found in the past 7 days_")
+    st.write("_No articles found in the past  days_")
 else:
     for art in articles:
         st.markdown(f"### [{art['title']}]({art['link']})")
