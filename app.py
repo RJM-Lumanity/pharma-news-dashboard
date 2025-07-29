@@ -116,6 +116,19 @@ for source_name, feed_url in rss_sources.items():
         raw_summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
         summary_clean = clean_html(raw_summary)
 
+        # ✅ Combine text for keyword matching
+        combined_text = f"{title_clean} {summary_clean}"
+
+        all_articles.append({
+            "title": title_clean,
+            "link": getattr(entry, "link", ""),
+            "published": getattr(entry, "published", "") or getattr(entry, "updated", ""),
+            "summary": summary_clean,
+            "text": combined_text,
+            "source": source_name
+        })
+
+
 # ✅ Fetch full article text and combine with title for keyword matching
 full_text = fetch_full_article_text(getattr(entry, "link", ""))
 combined_text = f"{title_clean} {summary_clean} {full_text}"
