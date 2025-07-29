@@ -23,7 +23,7 @@ def clean_html(raw_html):
 
 import re
 
-def article_in_last_7_days(entry):
+def article_in_last_30_days(entry):
     try:
         if hasattr(entry, "published_parsed"):
             published_struct = entry.published_parsed
