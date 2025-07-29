@@ -23,6 +23,8 @@ def clean_html(raw_html):
 
 import re
 
+import re
+
 def article_in_last_7_days(entry):
     try:
         if hasattr(entry, "published_parsed"):
@@ -38,7 +40,6 @@ def article_in_last_7_days(entry):
         return False
 
 def matches_therapy_area(entry_text, keywords):
-    # Remove punctuation & lowercase everything
     clean_text = re.sub(r"[^\w\s]", "", entry_text.lower())
     for keyword in keywords:
         keyword_clean = re.sub(r"[^\w\s]", "", keyword.lower())
