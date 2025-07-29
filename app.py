@@ -25,7 +25,11 @@ def clean_html(raw_html):
 
 # ---- Display Articles ----
 for entry in feed.entries[:10]:
-    st.markdown(f"### [{entry.title}]({entry.link})")
+    # Clean title if it contains HTML
+    raw_title = entry.title
+    clean_title = BeautifulSoup(raw_title, "html.parser").get_text()
+
+    st.markdown(f"### [{clean_title}]({entry.link})")
     st.write(f"**Published:** {entry.published}")
 
     if hasattr(entry, "summary"):
