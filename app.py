@@ -50,20 +50,38 @@ selected_area = st.sidebar.selectbox("Select therapy area", list(therapy_areas.k
 
 # ---- Fetch all articles from all sources ----
 all_articles = []
+
 for source_name, feed_url in rss_sources.items():
     feed = feedparser.parse(feed_url)
+
     for entry in feed.entries:
-        if article_in_last_7_days(entry):
-            title_clean = BeautifulSoup(entry.title, "html.parser").get_text()
-            summary_clean = clean_html(entry.summary) if hasattr(entry, "summary") else ""
-            combined_text = f"{title_clean} {summary_clean}"
-            all_articles.append({
-                "title": title_clean,
-                "link": entry.link,
-                "published": entry.published,
-                "summary": summary_clean,
-                "text": combined_text
-            })
+        # ✅ Get published date
+        published_struct = getattr(entry, "published_parsed", None) or getattr(entry, "updated_parsed", None)
+        if not published_struct:
+            continue  # skip if no date
+        
+        published_date = datetime.fromtimestamp(time.mktime(published_struct))
+        if published_date < datetime.now() - timedelta(days=7):
+            continue  # skip if older than 7 days
+
+        # ✅ Extract title safely
+        title_clean = BeautifulSoup(getattr(entry, "title", ""), "html.parser").get_text()
+
+        # ✅ Extract summary safely (fallback to description if summary missing)
+        raw_summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
+        summary_clean = clean_html(raw_summary)
+
+        # ✅ Combine text for keyword matching
+        combined_text = f"{title_clean} {summary_clean}"
+
+        all_articles.append({
+            "title": title_clean,
+            "link": getattr(entry, "link", ""),
+            "published": getattr(entry, "published", "") or getattr(entry, "updated", ""),
+            "summary": summary_clean,
+            "text": combined_text,
+            "source": source_name
+        })
 
 # ---- Group by therapy area ----
 grouped_articles = {area: [] for area in therapy_areas.keys()}
