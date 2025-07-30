@@ -25,8 +25,13 @@ def clean_html(raw_html):
     return soup.get_text()
 
 def matches_therapy_area(entry_text, keywords):
+    import re
     clean_text = re.sub(r"[^\w\s]", "", entry_text.lower())
     words = clean_text.split()
+
+    print("\n--- DEBUG: Checking article text ---")
+    print(clean_text[:500])  # first 500 chars
+    print("Keywords:", keywords)
 
     for keyword in keywords:
         keyword_clean = re.sub(r"[^\w\s]", "", keyword.lower())
@@ -34,11 +39,14 @@ def matches_therapy_area(entry_text, keywords):
 
         if len(keyword_parts) > 1:
             if keyword_clean in clean_text:
+                print(f"✅ MATCH FOUND: {keyword_clean}")
                 return True
         else:
             if keyword_clean in words:
+                print(f"✅ MATCH FOUND: {keyword_clean}")
                 return True
 
+    print("❌ No match")
     return False
 
 def fetch_full_article_text(url):
@@ -113,6 +121,11 @@ for source_name, feed_url in rss_sources.items():
 
 print(f"✅ Total articles fetched: {len(all_articles)}")
 
+full_text = fetch_full_article_text(getattr(entry, "link", ""))
+print(f"🔍 Full text length: {len(full_text)} for {title_clean}")
+combined_text = f"{title_clean} {summary_clean} {full_text}"
+
+
 # ---- Group by Therapy Area ----
 grouped_articles = {area: [] for area in therapy_areas.keys()}
 
@@ -135,3 +148,4 @@ else:
         st.write(f"**Published:** {art['published']}")
         st.write(art["summary"])
         st.markdown("---")
+
